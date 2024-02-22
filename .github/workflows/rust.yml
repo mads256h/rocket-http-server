@@ -41,3 +41,5 @@ jobs:
       with:
         token: ${{secrets.GITHUB_TOKEN}}
         args: --all-features --all-targets
+    - name: Check formatting
+      run: cargo fmt --all -- --check
