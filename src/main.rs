@@ -1,12 +1,12 @@
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 
-
-use rocket::{Rocket, Build};
 use rocket::fairing::{self, AdHoc};
 use rocket::serde::json::Json;
-use rocket::serde::{Serialize, Deserialize};
+use rocket::serde::{Deserialize, Serialize};
+use rocket::{Build, Rocket};
 
-use rocket_db_pools::{sqlx, Database, Connection};
+use rocket_db_pools::{sqlx, Connection, Database};
 
 type Result<T, E = rocket::response::Debug<sqlx::Error>> = std::result::Result<T, E>;
 
@@ -24,7 +24,6 @@ struct Task {
     device_id: i64,
 }
 
-
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 struct Timespan {
@@ -32,34 +31,48 @@ struct Timespan {
     end: i64,
 }
 
-
 #[get("/")]
 async fn hello(mut db: Connection<Db>) -> Result<Json<Vec<Task>>> {
-    let tasks = sqlx::query!(r#"
+    let tasks = sqlx::query!(
+        r#"
         SELECT id, timespan_start, timespan_end, duration, effect, device_id
         FROM Tasks
-    "#).fetch_all(&mut **db).await?;
+    "#
+    )
+    .fetch_all(&mut **db)
+    .await?;
 
-    let my_tasks = tasks.iter().map(|t| Task{
-        id: t.id,
-        timespan: Timespan { start: t.timespan_start, end: t.timespan_end },
-        duration: t.duration,
-        effect: t.effect,
-        device_id: t.device_id
-    }).collect();
+    let my_tasks = tasks
+        .iter()
+        .map(|t| Task {
+            id: t.id,
+            timespan: Timespan {
+                start: t.timespan_start,
+                end: t.timespan_end,
+            },
+            duration: t.duration,
+            effect: t.effect,
+            device_id: t.device_id,
+        })
+        .collect();
     Ok(Json(my_tasks))
 }
 
 #[get("/create")]
 async fn create(mut db: Connection<Db>) -> Result<Json<Task>> {
-    let mut new_task = Task{
+    let mut new_task = Task {
         id: -1,
-        timespan: Timespan { start: 1992, end: 2000 }, 
-        duration: 5 * 60 * 1000, 
-        effect: 1000.0, 
-        device_id: 1234 };
+        timespan: Timespan {
+            start: 1992,
+            end: 2000,
+        },
+        duration: 5 * 60 * 1000,
+        effect: 1000.0,
+        device_id: 1234,
+    };
 
-    let id = sqlx::query_scalar!(r#"
+    let id = sqlx::query_scalar!(
+        r#"
     INSERT INTO Tasks (timespan_start, timespan_end, duration, effect, device_id)
     VALUES (?, ?, ?, ?, ?)
     RETURNING id
@@ -69,7 +82,9 @@ async fn create(mut db: Connection<Db>) -> Result<Json<Task>> {
         new_task.duration,
         new_task.effect,
         new_task.device_id
-    ).fetch_one(&mut **db).await?;
+    )
+    .fetch_one(&mut **db)
+    .await?;
 
     new_task.id = id;
 
@@ -91,10 +106,10 @@ async fn run_migrations(rocket: Rocket<Build>) -> fairing::Result {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build()
-        .attach(AdHoc::on_ignite("Main stage", |rocket| async {
-            rocket.attach(Db::init())
+    rocket::build().attach(AdHoc::on_ignite("Main stage", |rocket| async {
+        rocket
+            .attach(Db::init())
             .attach(AdHoc::try_on_ignite("Migrations", run_migrations))
             .mount("/", routes![hello, create])
-        }))
+    }))
 }
