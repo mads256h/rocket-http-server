@@ -16,6 +16,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Rustup
+      run: rustup toolchain install stable --profile minimal
+    - name: Install sqlx-cli
+      run: cargo install sqlx-cli --no-default-features --features sqlite
+    - name: Setup local db
+      run: |
+        cargo sqlx db create
+        cargo sqlx migrate run
     - name: Build
       run: cargo build --verbose
     - name: Run tests
