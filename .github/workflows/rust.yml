@@ -1,5 +1,8 @@
 name: Rust
 
+permissions:
+  checks: write
+
 on:
   push:
     branches: [ "master" ]
@@ -17,7 +20,13 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Rustup
-      run: rustup toolchain install stable --profile minimal
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        components: clippy
+    - uses: Swatinem/rust-cache@v2
     - name: Install sqlx-cli
       run: cargo install sqlx-cli --no-default-features --features sqlite
     - name: Setup local db
@@ -28,3 +37,9 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+    - uses: actions-rs/clippy-check@v1
+      with:
+        token: ${{secrets.GITHUB_TOKEN}}
+        args: --all-features --all-targets
+    - name: Check formatting
+      run: cargo fmt --all -- --check
